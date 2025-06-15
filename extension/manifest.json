@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "LEETCODE-REMINDER",
+    "version": "1.0",
+    "description": "Tracks solved LeetCode problems and sends them to the local server.",
+    "permissions": ["scripting", "activeTab"],
+    "host_permissions": [
+      "https://leetcode.com/*",
+      "http://localhost:3000/"
+    ],
+    "content_scripts": [
+      {
+        "matches": ["https://leetcode.com/problems/*"],
+        "js": ["extension.js"],
+        "run_at": "document_idle"
+      }
+    ],
+    "action": {
+      "default_title": "LEETCODE-REMINDER"
+    }
+  }
+  
