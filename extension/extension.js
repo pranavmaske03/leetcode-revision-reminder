@@ -62,7 +62,7 @@ const problemObserver = new MutationObserver((mutations,observer) => {
             const problemData = document.querySelector('.text-title-large a');
             console.log(hasSolvedSucessfully);
             if(problemData) {
-              const { problemNumber, problemName } = getProblemInfo(element) || {};
+              const { problemNumber, problemName } = getProblemInfo(problemData) || {};
               console.log("problemName : ",problemName);
               console.log("problemNumber : ",problemNumber);
               hasSolvedSucessfully = false;
