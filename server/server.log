@@ -1,4 +1,0 @@
-[14/6/2025 18:41:02] [INFO] server started on port: 3000
-[14/6/2025 18:41:11] [INFO] Problem received from browser: 1-Two Sum
-[14/6/2025 18:41:11] [INFO] Problem write into CSV.
-[14/6/2025 19:01:31] [INFO] Received SIGINT signal. Server shutting down.
