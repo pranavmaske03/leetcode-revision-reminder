@@ -1,10 +1,10 @@
 
 // 1. Real struggle score - formula - 1
-export function calculateStruggleScore({ wrongAttempts, solutionViewed, hintUsed, activeMinutes }) {
+export function calculateStruggleScore({ wrongAttempts, solutionViewed, hintsUsed, activeMinutes }) {
     const attemptScore = 1 - Math.exp(-0.6 * wrongAttempts);
     const solutionScore = solutionViewed ? 1 : 0;
-    const hintsScore = Math.min(1, hintUsed * 0.5);
-    const timeScore = Math.min(1, Math.sqrt(activeMinutes) / 60);
+    const hintsScore = Math.min(1, hintsUsed * 0.5);
+    const timeScore = Math.min(1, Math.sqrt(activeMinutes / 60));
 
     return (
         0.35 * attemptScore +

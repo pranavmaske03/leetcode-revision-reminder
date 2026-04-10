@@ -1,4 +1,4 @@
-import { calculatePriority } from "./score";
+import { calculatePriority } from "./score.js";
 
 export function buildDailyQueue(problems, userMeta, todayMidnight) { 
     const now = Date.now();
