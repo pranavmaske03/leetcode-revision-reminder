@@ -1,0 +1,39 @@
+{
+    "manifest_version": 3,
+    "name": "Leetcode Revision Engine",
+    "version": "0.1.0",
+    "description": "Watches how you struggle on LeetCode and builds a personalized revision queue.",
+
+    "permissions": [
+        "storage",
+        "alarms"
+    ],
+
+    "host_permissions": [
+        "https://leetcode.com/*"    
+    ],
+
+    "background": {
+        "service_worker": "background/service-worker.js",
+        "type": "module"
+    },
+
+    "content_scripts": [
+        {
+            "matches": ["https://leetcode.com/*"],
+            "js": ["content/content-script.js"],
+            "run_at": "document_idle"
+        }
+    ],
+
+    "action": {
+        "default_popup": "popup/popup.html"
+    },
+
+    "web_accessible_resources": [
+        {
+            "resources": ["content/injected.js"],
+            "matches": ["https://leetcode.com/*"]
+        }
+    ]
+}
