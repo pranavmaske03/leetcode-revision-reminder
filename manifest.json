@@ -6,12 +6,11 @@
 
     "permissions": [
         "storage",
-        "alarms",
-        "scripting"
+        "alarms"
     ],
 
     "host_permissions": [
-        "https://leetcode.com/*"
+        "https://leetcode.com/*"    
     ],
 
     "background": {
@@ -23,14 +22,14 @@
         {
             "matches": ["https://leetcode.com/*"],
             "js": ["content/content-script.js"],
-            "run_at": "document_start"
+            "run_at": "document_idle"
         }
     ],
 
-    "action" : {
+    "action": {
         "default_popup": "popup/popup.html"
     },
-    
+
     "web_accessible_resources": [
         {
             "resources": ["content/injected.js"],
