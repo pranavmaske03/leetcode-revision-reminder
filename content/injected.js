@@ -1,65 +1,67 @@
 
 (function () {
+    console.log('[LRE] injected.js loaded — fetch hook active');
+
     const originalFetch = window.fetch;
+    let pendingSubmissionId = null;
 
     window.fetch = async function (...args) {
         const response = await originalFetch.apply(this, args);
-        const cloned   = response.clone();
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+        if (!url) return response;
 
-        try {
-            const url  = typeof args[0] === 'string' ? args[0] : args[0]?.url;
-            const body = typeof args[1]?.body === 'string' ? args[1].body : '';
+        if (url.includes('/submit/')) {
+            response.clone().json().then(data => {
+                if (data.submission_id) {
+                    pendingSubmissionId = data.submission_id;
+                    console.log(`[LRE] Submit intent captured. ID: ${pendingSubmissionId}`);
+                }
+            }).catch(() => {});
+        }
 
-            if (url.includes('/graphql')) {
-                const data = await cloned.json();
-                handleGraphQL(body, data);
-            }
-            if (url.includes('/submissions/detail/') && url.includes('/check/')) {
-                const data = await cloned.json();
-                handleSubmissionCheck(data);
-            }
-        } catch (err) {
-            
+        if (url.includes('/check/')) {
+            response.clone().json().then(data => {
+                if (data.state === 'PENDING' || data.state === 'STARTED') return;
+
+                const slug = getSlugFromUrl();
+                if (!slug) {
+                    console.warn('[LRE] Could not determine problem slug from URL.');
+                    return;
+                }
+
+                if (pendingSubmissionId === null) {
+                    console.log('[LRE] Run Code completed (no /submit/ seen). No penalty.');
+                    sendSignal('RUN_CODE', { slug });
+                    return;
+                }
+
+                console.log(`[LRE] Submission result arrived for ID: ${pendingSubmissionId}`);
+                pendingSubmissionId = null;
+
+                if (data.status_code === 10) {
+                    console.log('[LRE] Accepted Submission detected!');
+                    sendSignal('ACCEPTED_SUBMISSION', { slug });
+                } else if (data.status_code !== undefined) {
+                    console.log(`[LRE] Failed Submission (Code: ${data.status_code})`);
+                    sendSignal('WRONG_SUBMISSION', { slug });
+                }
+            }).catch(() => {});
         }
         return response;
     };
 
-    function handleGraphQL(body, data) {
-        try {
-            const parsed = JSON.parse(body);
-            const op = parsed?.operationName;
-
-            if (op && op.toLowerCase().includes('hint')) {
-                const slug = getSlugFromUrl();
-                if (slug) post('HINT_USED', { slug });
-            }
-            if (op === 'questionData' && data?.data?.question) {
-                const q    = data.data.question;
-                const slug = q.titleSlug;
-                const name = q.title;
-                const diff = q.difficulty;
-                post('PROBLEM_META', { slug, name, difficulty: diff });
-            }
-        } catch (err) {}
-    }
-
-    function handleSubmissionCheck(data) {
-        const slug = getSlugFromUrl();
-        if (!slug) return;
-
-        if (data.status_code === 10) {
-            post('ACCEPTED_SUBMISSION', { slug });
-        } else if (data.status_code !== undefined) {
-            post('WRONG_SUBMISSION', { slug });
-        }
-    }
-    
     function getSlugFromUrl() {
-        const match = location.pathname.match(/\/problems\/([^/]+)\//);
+        const match = location.pathname.match(/\/problems\/([^/]+)/);
         return match ? match[1] : null;
     }
-    function post(type, payload) {
-        window.postMessage({ type: 'LRE_' + type, payload }, '*');
-    }
 
+    function sendSignal(type, payload) {
+        window.dispatchEvent(new CustomEvent('LEETCODE_SIGNAL', {
+            detail: {
+                type,
+                timestamp: Date.now(),
+                ...payload
+            }
+        }));
+    }
 })();

@@ -4,6 +4,95 @@ script.src = chrome.runtime.getURL('content/injected.js');
 script.type = 'text/javascript';
 (document.head || document.documentElement).appendChild(script);
 
+let currentSession = {
+    slug: null,
+    wrongAttempts: 0,
+    solutionViewed: false,
+    hintsUsed: 0,
+    activeMinutes: 0
+};
+
+let activeTimer = null;
+
+function loadSession(slug) {
+    const saved = sessionStorage.getItem(`lre_session_${slug}`);
+    if (saved) {
+        currentSession = JSON.parse(saved);
+        console.log('[LRE] Restored session from storage:', currentSession);
+    } else {
+        currentSession = { 
+            slug, 
+            wrongAttempts: 0, 
+            solutionViewed: false,
+            hintsUsed: 0, 
+            activeMinutes: 0 
+        };
+        saveSession();
+        console.log('[LRE] Started new session for:', slug);
+    }
+}
+
+function saveSession() {
+    if (currentSession.slug) {
+        sessionStorage.setItem(`lre_session_${currentSession.slug}`, JSON.stringify(currentSession));
+    }
+}
+
+function clearSession() {
+    if (currentSession.slug) {
+        sessionStorage.removeItem(`lre_session_${currentSession.slug}`);
+    }
+    currentSession = { 
+        slug: null, 
+        wrongAttempts: 0, 
+        solutionViewed: false, 
+        hintsUsed: 0, 
+        activeMinutes: 0 
+    };
+}
+
+function extractDifficultyFromDOM() {
+    const elements = document.querySelectorAll('[class*="difficulty"], [class*="Difficulty"]');
+    for (const el of elements) {
+        const text = el.textContent.trim();
+        if (['Easy', 'Medium', 'Hard'].includes(text)) return text;
+    }
+
+    const allElements = document.querySelectorAll('span, div');
+    for (const el of allElements) {
+        const text = el.textContent.trim();
+        if (['Easy', 'Medium', 'Hard'].includes(text)) return text;
+    }
+    return 'Unknown';
+}
+
+window.addEventListener('LEETCODE_SIGNAL', (event) => {
+    const { type, slug } = event.detail;
+
+    // Ignore signals that don't belong to the active problem
+    if (!slug || slug !== currentSession.slug) return;
+
+    if (type === 'WRONG_SUBMISSION') {
+        currentSession.wrongAttempts += 1;
+        saveSession();
+        console.log(`[LRE] Wrong attempt! Total: ${currentSession.wrongAttempts}`);
+    }
+    else if (type === 'RUN_CODE') {
+        console.log('[LRE] Run Code executed (No penalty).');
+    }
+    else if (type === 'ACCEPTED_SUBMISSION') {
+        console.log('[LRE] ACCEPTED! Forwarding session to Service Worker.');
+
+        const difficulty = extractDifficultyFromDOM();
+        sendMessage('RECORD_SOLVE', {
+            ...currentSession,
+            difficulty
+        });
+        clearSession();
+        stopActiveTimeTracker();
+    }
+});
+
 let lastUrl = location.href;
 
 const observer = new MutationObserver(() => {
@@ -25,41 +114,41 @@ if (document.body) {
 }
 
 function onUrlChange(url) {
-    const problemMatch  = url.match(/\/problems\/([^/]+)\//);
-    const solutionMatch = url.match(/\/problems\/([^/]+)\/solutions\/\d+\//);
+    const problemMatch   = url.match(/\/problems\/([^/]+)\//);
+    const solutionMatch  = url.match(/\/problems\/([^/]+)\/solutions\/\d+\//);
     const editorialMatch = url.match(/\/problems\/([^/]+)\/editorial\//);
     const ownSubmission  = url.match(/\/problems\/([^/]+)\/submissions\/\d+\//);
 
-    if (ownSubmission) return;
-
-    if (solutionMatch) {
-        sendMessage('SOLUTION_VIEWED', { slug: solutionMatch[1] });
-        return;
-    }
-
-    if (editorialMatch) {
-        sendMessage('EDITORIAL_OPENED', { slug: editorialMatch[1] });
+    // If user opens a solution, submission or editorial, penalize
+    if (solutionMatch || editorialMatch || ownSubmission) {
+        const slug = (solutionMatch || editorialMatch || ownSubmission)[1];
+        if (currentSession.slug === slug) {
+            currentSession.solutionViewed = true;
+            currentSession.hintsUsed += 1;
+            saveSession();
+            console.log(`[LRE] Solution/Editorial viewed! hintsUsed: ${currentSession.hintsUsed}, solutionViewed: true`);
+        }
         return;
     }
 
     if (problemMatch) {
         const slug = problemMatch[1];
-        sendMessage('PROBLEM_OPENED', { slug, name: slug, difficulty: 'Unknown' });
+
+        if (currentSession.slug && currentSession.slug !== slug) {
+            stopActiveTimeTracker();
+        }
+        loadSession(slug);
         startActiveTimeTracker(slug);
-        return;
     }
 }
 
-let activeTimer = null;
-let currentSlug = null;
-
 function startActiveTimeTracker(slug) {
     stopActiveTimeTracker();
-    currentSlug = slug;
 
     activeTimer = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-        sendMessage('ACTIVE_TIME_TICK', { slug: currentSlug, deltaMinutes: 0.5 });
+        if (document.visibilityState === 'visible' && currentSession.slug === slug) {
+            currentSession.activeMinutes += 0.5;
+            saveSession();
         }
     }, 30000);
 }
@@ -72,24 +161,27 @@ function stopActiveTimeTracker() {
 }
 
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') stopActiveTimeTracker();
-    if (document.visibilityState === 'visible' && currentSlug) startActiveTimeTracker(currentSlug);
-});
-
-window.addEventListener('message', (event) => {
-    if (event.source !== window) return;
-    if (!event.data?.type?.startsWith('LRE_')) return;
-
-    const type = event.data.type.replace('LRE_', '');
-    const payload = event.data.payload;
-
-    sendMessage(type, payload);
-});
-
-function sendMessage(type, payload) {
-  chrome.runtime.sendMessage({ type, payload }, (response) => {
-    if (chrome.runtime.lastError) {
-      // Service worker may be sleeping — not an error, Chrome wakes it on next message
+    if (document.visibilityState === 'hidden') {
+        stopActiveTimeTracker();
+    } else if (document.visibilityState === 'visible' && currentSession.slug) {
+        startActiveTimeTracker(currentSession.slug);
     }
-  });
+});
+
+function sendMessage(type, payload, retries = 3) {
+    if (chrome.runtime?.id === undefined) {
+        console.warn('[LRE] Extension context dead, dropping message.');
+        return;
+    }
+
+    chrome.runtime.sendMessage({ type, payload }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.warn(`[LRE] SW error, retries left: ${retries}`);
+            if (retries > 0) {
+                setTimeout(() => sendMessage(type, payload, retries - 1), 500);
+            }
+        } else {
+            console.log('[LRE] SW response:', response);
+        }
+    });
 }
