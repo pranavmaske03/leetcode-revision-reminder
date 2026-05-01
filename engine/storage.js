@@ -41,8 +41,8 @@ export async function initStorage() {
 }
 
 export async function getProblems() {
-    const { problems } = await chromeGet(['problems']);
-    return problems;
+    const result = await chromeGet(['problems']);
+    return result.problems || {};
 }
 
 export async function getUserMeta() {
@@ -74,7 +74,7 @@ export async function upsertProblem(slug, fields) {
 }
 
 export function makeProblemRecord(slug, name, difficulty, overrides = {}) {
-    return  {
+    return {
         slug,
         name,
         difficulty,
@@ -82,13 +82,8 @@ export function makeProblemRecord(slug, name, difficulty, overrides = {}) {
         dataType: 'bootstrap',
         lastSolved: null,
         nextReview: null,
-        wrongAttempts: 0,
-        solutionViewed: false,
-        hintsUsed: 0,
-        activeMinutes: 0,
         reviewCount: 0,
         interval: 14,
         ...overrides,
     };
 }
-
