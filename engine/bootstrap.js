@@ -3,14 +3,14 @@ import { makeProblemRecord } from "./storage.js"
 
 export async function scrapeAcceptedSubmissions() {
     const MAX_UNIQUE = 50; 
-    const MAX_SUBMISSIONS = 100;
+    const MAX_SUBMISSIONS = 1000;
     const LIMIT = 20;           
     let offset = 0;
     
     const seenSlugs = new Map();
     console.log('[LRE Bootstrap] Starting submission scrape...');
 
-    while (offset < MAX_SUBMISSIONS) {
+    while (seenSlugs.size < MAX_UNIQUE && offset < MAX_SUBMISSIONS) {
         console.log(`[LRE Bootstrap] Fetching submissions at offset ${offset}...`);
 
         let page;
