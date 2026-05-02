@@ -92,8 +92,24 @@ async function onRecordSolve(session) {
 
     await upsertProblem(slug, updatedProblem);
     await saveUserMeta({ ...meta, memoryFactor: newMF });
+    await markQueueItemCompleted(slug);
     await maybeRefreshDailyQueue();
     return { ok: true };
+}
+
+async function markQueueItemCompleted(slug) {
+    const queueData = await getDailyQueue();
+    if (!queueData || !Array.isArray(queueData.queue)) return;
+
+    const idx = queueData.queue.findIndex(item => item.slug === slug);
+    if (idx === -1) {
+        console.log(`[LRE] "${slug}" not in today's queue, skipping isCompleted mark.`);
+        return;
+    }
+
+    queueData.queue[idx].isCompleted = true;
+    await saveDailyQueue(queueData);
+    console.log(`[LRE] Marked "${slug}" as completed in today's queue.`);
 }
 
 async function onBootstrapData({ records }) {
