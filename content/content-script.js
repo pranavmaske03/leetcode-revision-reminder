@@ -69,7 +69,6 @@ function extractDifficultyFromDOM() {
 window.addEventListener('LEETCODE_SIGNAL', (event) => {
     const { type, slug } = event.detail;
 
-    // Ignore signals that don't belong to the active problem
     if (!slug || slug !== currentSession.slug) return;
 
     if (type === 'WRONG_SUBMISSION') {
@@ -185,3 +184,62 @@ function sendMessage(type, payload, retries = 3) {
         }
     });
 }
+
+function sendMessageAsync(type, payload) {
+    return new Promise((resolve) => {
+        if (chrome.runtime?.id === undefined) {
+            console.warn('[LRE] Extension context dead.');
+            resolve(null);
+            return;
+        }
+        chrome.runtime.sendMessage({ type, payload }, resolve);
+    });
+}
+
+async function maybeRunBootstrap() {
+    const meta = await sendMessageAsync('GET_USER_META', {});
+
+    if(!meta || meta.bootstrapDone) {
+        console.log('[LRE] Bootstrap already done, skipping.');
+        return;
+    }
+
+    console.log('[LRE] First install - Running bootstrap...');
+
+    try {
+        const bootstrapUrl = chrome.runtime.getURL('engine/bootstrap.js');
+        const {
+            scrapeAcceptedSubmissions,
+            fetchDifficultiesForSlugs,
+            generateBootstrapRecords,
+            spreadBootstrapSchedule,
+        } = await import(bootstrapUrl);
+
+        const submissions = await scrapeAcceptedSubmissions();
+
+        if(submissions.length === 0) {
+            console.log('[LRE] No submissions found, marking bootstrap done.');
+            await sendMessageAsync('BOOTSTRAP_DATA', { records: [] });
+            return;
+        }
+
+        const slugs = submissions.map(s => s.slug);
+        const difficultyMap = await fetchDifficultiesForSlugs(slugs);
+        const records = generateBootstrapRecords(submissions, difficultyMap);
+        const todayMidnight = getTodayMidnight();
+        const scheduled = spreadBootstrapSchedule(records, todayMidnight);
+
+        const result = await sendMessageAsync('BOOTSTRAP_DATA', { records: scheduled });
+        console.log(`[LRE] Bootstrap complete — ${result?.imported ?? 0} problems imported.`);
+    } catch (error) {
+        console.error('[LRE] Bootstrap failed:', error);
+    }
+}
+
+function getTodayMidnight() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+}
+
+maybeRunBootstrap();

@@ -41,6 +41,7 @@ async function handleMessage({ type, payload }) {
         case 'RECORD_SOLVE':    return await onRecordSolve(payload);
         case 'BOOTSTRAP_DATA':  return await onBootstrapData(payload);
         case 'GET_DAILY_QUEUE': return await getDailyQueue();
+        case 'GET_USER_META':   return await getUserMeta();
         case 'GET_STATS':       return await getStats();
         default:
             return { ok: false, error: 'unknown_type' };
@@ -91,13 +92,37 @@ async function onRecordSolve(session) {
 
     await upsertProblem(slug, updatedProblem);
     await saveUserMeta({ ...meta, memoryFactor: newMF });
-    await forceRefreshDailyQueue();
+    await maybeRefreshDailyQueue();
     return { ok: true };
 }
 
-async function onBootstrapData(records) {
-    console.log('[LRE] Received bootstrap data for', Object.keys(records).length, 'problems');
-    return { ok: true };
+async function onBootstrapData({ records }) {
+    if (!records || records.length === 0) {
+        const meta = await getUserMeta();
+        await saveUserMeta({ ...meta, bootstrapDone: true });
+        console.log("[LRE] Bootstrap: no records to import.");
+        return { ok: true, imported: 0 };
+    }
+
+    const problems = await getProblems();
+    const meta = await getUserMeta();
+    let imported = 0;
+
+    for (const record of records) { 
+        if (problems[record.slug]?.dataType === 'real') {
+            console.log(`[LRE] Bootstrap: skipping "${record.slug}" — real data exists.`);
+            continue;
+        }
+
+        await upsertProblem(record.slug, record);
+        imported++;
+    }
+
+    await saveUserMeta({ ...meta, bootstrapDone: true });
+    await forceRefreshDailyQueue();
+
+    console.log(`[LRE] Bootstrap complete: ${imported}/${records.length} problems imported.`);
+    return { ok: true, imported };
 }
 
 async function getStats() {

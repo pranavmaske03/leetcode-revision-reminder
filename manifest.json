@@ -1,12 +1,13 @@
 {
     "manifest_version": 3,
-    "name": "Leetcode Revision Engine",
+    "name": "Leetcode Revision Extension",
     "version": "0.1.0",
-    "description": "Watches how you struggle on LeetCode and builds a personalized revision queue.",
+    "description": "Monitors solving patterns on LeetCode, calculates struggle score, and generates a personalized revision queue.",
 
     "permissions": [
         "storage",
-        "alarms"
+        "alarms",
+        "cookies"
     ],
 
     "host_permissions": [
@@ -31,9 +32,16 @@
     },
 
     "web_accessible_resources": [
-        {
-            "resources": ["content/injected.js"],
-            "matches": ["https://leetcode.com/*"]
-        }
-    ]
+    {
+      "resources": [
+        "content/injected.js",
+        "engine/bootstrap.js",
+        "engine/score.js",
+        "engine/storage.js"
+      ],
+      "matches": [
+        "https://leetcode.com/*"
+      ]
+    }
+  ]
 }
