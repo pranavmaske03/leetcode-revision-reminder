@@ -1,4 +1,4 @@
-import { calculateBootstrapScore } from "./score.js"
+import { calculateBootstrapScore, calculateInterval } from "./score.js"
 import { makeProblemRecord } from "./storage.js"
 
 export async function scrapeAcceptedSubmissions() {
@@ -116,9 +116,11 @@ export function generateBootstrapRecords(submissions, difficultyMap) {
         const difficulty = difficultyMap.get(sub.slug) || 'Medium';
         const daysSinceSolved = (now - sub.lastSolved) / 864e5;
         const score = calculateBootstrapScore({ difficulty, daysSinceSolved });
+        const interval = calculateInterval(score, difficulty, 1.0);
 
         const record = makeProblemRecord(sub.slug, sub.slug, difficulty, {
             score,
+            interval,
             dataType:   'bootstrap',
             lastSolved: sub.lastSolved,
             nextReview: null,
@@ -130,15 +132,7 @@ export function generateBootstrapRecords(submissions, difficultyMap) {
 }
 
 export function spreadBootstrapSchedule(records, todayMidnight) {
-    const MAX_PER_DAY = 5;
-    const ONE_DAY_MS = 864e5;
-    const sorted = [...records].sort((a, b) => b.score - a.score);
-
-    return sorted.map((record, index) => {
-        const dayOffset  = Math.floor(index / MAX_PER_DAY);
-        const nextReview = todayMidnight + dayOffset * ONE_DAY_MS;
-        return { ...record, nextReview };
-    });
+    return records.map(record => ({ ...record, nextReview: todayMidnight }));
 }
 
 async function fetchSubmissionPage(offset, limit) {
