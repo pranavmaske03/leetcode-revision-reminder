@@ -17,7 +17,7 @@ export function calculateStruggleScore({ wrongAttempts, solutionViewed, hintsUse
 
 //2. Bootstrap score - formula - 2
 export function calculateBootstrapScore({ difficulty, daysSinceSolved }) {
-    const baseScores = { Easy: 0.20, Medium: 0.55, Hard: 0.72 };
+    const baseScores = { Easy: 0.45, Medium: 0.62, Hard: 0.30 };
     const baseScore = baseScores[difficulty] ?? 0.55;
     const recency = Math.min(1, daysSinceSolved / 60);
 

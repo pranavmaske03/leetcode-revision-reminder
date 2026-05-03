@@ -83,7 +83,7 @@ export function makeProblemRecord(slug, name, difficulty, overrides = {}) {
         lastSolved: null,
         nextReview: null,
         reviewCount: 0,
-        interval: 14,
+        interval:0,
         ...overrides,
     };
 }
