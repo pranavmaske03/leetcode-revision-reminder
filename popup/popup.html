@@ -1,10 +1,54 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>LeetCode Revision</title>
-  </head>
-  <body>
-    <h1>LeetCode Revision Engine</h1>
-  </body>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>LRE</title>
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <div id="app">
+            <header class="header">
+                <div class="logo-block">
+                    <span class="logo-text">LRE</span>
+                    <div class="logo-dot"></div>
+                </div>
+                <div class="tracked-pill">
+                    <span class="tracked-num" id="totalNum">–</span>
+                    <span class="tracked-label">Problems Tracked</span>
+                </div>
+            </header>
+            <div class="subheader">
+                <span class="date-text" id="dateText"></span>
+                <span class="queue-badge" id="queueBadge"></span>
+            </div>
+            <main id="queueSection">
+                <div id="loadingState" class="state-panel">
+                    <div class="loader">
+                        <div class="loader-bar"></div>
+                        <div class="loader-bar"></div>
+                        <div class="loader-bar"></div>
+                    </div>
+                    <p class="state-msg">Fetching your queue…</p>
+                </div>
+                <div id="emptyState" class="state-panel hidden">
+                    <div class="empty-icon">
+                        <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                            <circle cx="26" cy="26" r="24" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3.5" opacity="0.25"/>
+                            <path d="M17 26.5l6 6L35 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <p class="empty-title">All caught up!</p>
+                    <p class="state-msg">Nothing due today. Go solve something new.</p>
+                </div>
+                <ol id="queueList" class="queue-list hidden"></ol>
+            </main>
+            <footer class="footer">
+                <span class="footer-item">v0.1.0</span>
+                <span class="footer-sep">·</span>
+                <span class="footer-item">Spaced Repetition</span>
+            </footer>
+        </div>
+        <script src="popup.js"></script>
+    </body>
 </html>
