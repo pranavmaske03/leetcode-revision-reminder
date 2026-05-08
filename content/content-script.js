@@ -118,8 +118,10 @@ function onUrlChange(url) {
     const editorialMatch = url.match(/\/problems\/([^/]+)\/editorial\//);
     const ownSubmission  = url.match(/\/problems\/([^/]+)\/submissions\/\d+\//);
 
-    // If user opens a solution, submission or editorial, penalize
-    if (solutionMatch || editorialMatch || ownSubmission) {
+    if(ownSubmission) return;
+
+    // If user opens a solution or editorial, penalize
+    if (solutionMatch || editorialMatch) {
         const slug = (solutionMatch || editorialMatch || ownSubmission)[1];
         if (currentSession.slug === slug) {
             currentSession.solutionViewed = true;
