@@ -4,6 +4,7 @@
 
     const originalFetch = window.fetch;
     let pendingSubmissionId = null;
+    const processedSubmissions = new Set();
 
     window.fetch = async function (...args) {
         const response = await originalFetch.apply(this, args);
@@ -35,8 +36,14 @@
                     return;
                 }
 
-                console.log(`[LRE] Submission result arrived for ID: ${pendingSubmissionId}`);
+                const submissionId = pendingSubmissionId;
                 pendingSubmissionId = null;
+                if (processedSubmissions.has(submissionId)) {
+                    console.log(`[LRE] Duplicate /check/ for ID ${submissionId} — dropped.`);
+                    return;
+                }
+                processedSubmissions.add(submissionId);
+                console.log(`[LRE] Submission result arrived for ID: ${submissionId}`);
 
                 if (data.status_code === 10) {
                     console.log('[LRE] Accepted Submission detected!');
