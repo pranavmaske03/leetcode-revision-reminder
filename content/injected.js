@@ -30,28 +30,40 @@
                     return;
                 }
 
-                if (pendingSubmissionId === null) {
-                    console.log('[LRE] Run Code completed (no /submit/ seen). No penalty.');
+                const taskName = data.task_name;
+                const submissionId = data.submission_id;
+                const statusCode = data.status_code;
+
+                if (pendingSubmissionId !== null) {
+                    if (processedSubmissions.has(submissionId)) {
+                        console.log(`[LRE] Late /check/ poll for ID ${submissionId} — dropped.`);
+                        return;
+                    }
+
+                    if (taskName === 'judger.judgetask.Judge') {
+                        console.log(`[LRE] task_name confirmed: Judge. ID: ${submissionId}`);
+                    } else {
+                        console.warn(`[LRE] task_name mismatch (got "${taskName}") but /submit/ was seen — proceeding on primary signal.`);
+                    }
+
+                    processedSubmissions.add(submissionId);
+                    pendingSubmissionId = null;
+
+                    if (statusCode === 10) {
+                        console.log('[LRE] Accepted Submission detected!');
+                        sendSignal('ACCEPTED_SUBMISSION', { slug });
+                    } else {
+                        console.log(`[LRE] Wrong Submission (status_code: ${statusCode})`);
+                        sendSignal('WRONG_SUBMISSION', { slug });
+                    }
+                    return;
+                }
+                if (taskName === 'judger.runcodetask.RunCode') {
+                    console.log('[LRE] Run Code completed (no /submit/ seen).');
                     sendSignal('RUN_CODE', { slug });
                     return;
                 }
-
-                const submissionId = pendingSubmissionId;
-                pendingSubmissionId = null;
-                if (processedSubmissions.has(submissionId)) {
-                    console.log(`[LRE] Duplicate /check/ for ID ${submissionId} — dropped.`);
-                    return;
-                }
-                processedSubmissions.add(submissionId);
-                console.log(`[LRE] Submission result arrived for ID: ${submissionId}`);
-
-                if (data.status_code === 10) {
-                    console.log('[LRE] Accepted Submission detected!');
-                    sendSignal('ACCEPTED_SUBMISSION', { slug });
-                } else if (data.status_code !== undefined) {
-                    console.log(`[LRE] Failed Submission (Code: ${data.status_code})`);
-                    sendSignal('WRONG_SUBMISSION', { slug });
-                }
+                console.warn(`[LRE] Ambiguous /check/ — no /submit/ seen, task_name is "${taskName}". No signal fired.`);
             }).catch(() => {});
         }
         return response;
